@@ -92,6 +92,7 @@ calibrate_drivetrain()
 #endregion VEXcode Generated Robot Configuration
 gridspace = 28 #cm
 drivetrain.set_heading(0,DEGREES)
+motor_4.set_heading(0,DEGREES)
 modegrid = [[0,9],[13,12],[25,9]]
 grid = [(0,0),(0,1),(0,2),(0,3),
         (1,0),(1,1),(1,2),(1,3),
@@ -101,6 +102,7 @@ class Navigator:
     def __init__(self,cur,grid):
         self.cur = cur
         self.grid = grid
+        self.mode = 0
 
     def close(self, pos, grid):
         valid = []
@@ -175,26 +177,31 @@ class Navigator:
         elif dir == (0,0):
             pass
 
-    def shift(self,mode,cur):
+    def shift(self,mode):
         if mode == 0:
             motor_4.spin_to_position(0,DEGREES,wait=True)
-            if cur == 2:
+            if self.mode == 2:
                 drivetrain.drive_for(FORWARD,30,MM)
+            self.mode = 0
         elif mode == 1:
             motor_4.spin_to_position(105,DEGREES,wait=True)
-            if cur != 2:
+            if self.mode != 2:
                 drivetrain.drive_for(REVERSE,30,MM)
+            self.mode = 1
         elif mode == 2:
             motor_4.spin_to_position(180,DEGREES,wait=True)
-            if cur == 2:
+            if self.mode == 2:
                 drivetrain.drive_for(FORWARD,30,MM)
+            self.mode = 2
 
 
-    def goTo(self,dest,remove=None,switchTo=(0,0),grab=False):
+    def goTo(self,dest,remove=None,switchTo=0,release=False,grab=False):
         curpos = self.cur
         if grab:
             motor_10.spin(REVERSE)
         removedGrid = list(self.grid)
+        if release:
+            motor_10.spin(FORWARD)
         if remove:
             for i in remove:
                 removedGrid.remove(i)
@@ -208,15 +215,18 @@ class Navigator:
                 final = True
             try:
                 if len(i) >= 2 and i == path[-2]:
-                    self.shift(switchTo[0],switchTo[1])
+                    self.shift(switchTo[0])
             except IndexError:
                 pass
             self.move((tuple(x - y for x, y in zip(i, curpos))),final=final)
 
             if final:
-                motor_10.spin(FORWARD)
+                if grab:
+                    motor_10.spin(FORWARD)
+                if release:
+                    motor_10.spin(REVERSE)
                 self.move(tuple((x - y) for x, y in zip(i, curpos)),drec=REVERSE,final=final)
-                self.shift(0,switchTo[0])
+                self.shift(0)
             wait(500,MSEC)
             curpos = i
         
